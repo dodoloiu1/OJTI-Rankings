@@ -15437,10 +15437,36 @@
       function computeWinners() {
         const g = {};
         RAW.forEach((r) => {
+          if (r.total < 60) return;
           const k = r.judet + "_" + r.clasa;
           if (!g[k] || r.total > g[k].total) g[k] = r;
         });
         return new Set(Object.values(g).map((r) => r.id));
+      }
+
+      function openModal(id) {
+        var r = RAW.find(function (x) {
+          return x.id === id;
+        });
+        if (!r) return;
+        var isW = WINNERS.has(r.id);
+        var el = document.getElementById("modal");
+        document.getElementById("m-id").textContent = r.id;
+        document.getElementById("m-id").className =
+          "modal-id " + (r.final ? "id-final" : isW ? "id-gold" : "");
+        document.getElementById("m-judet").textContent =
+          JUDET_LABEL[r.judet] || r.judet;
+        document.getElementById("m-cat").textContent =
+          (CLASS_LABEL[r.clasa] || r.clasa) + " · " + r.sectiune;
+        var sv = document.getElementById("m-score");
+        sv.innerHTML = r.total + "<span>/ 100</span>";
+        sv.className = "modal-score-val " + scoreClass(r);
+        document.getElementById("m-problems").innerHTML = "";
+        el.classList.add("open");
+      }
+
+      function closeModal() {
+        document.getElementById("modal").classList.remove("open");
       }
       const WINNERS = computeWinners();
 
@@ -15497,7 +15523,12 @@
           return true;
         });
         data.sort(function (a, b) {
-          if (sortCol === "total") return (b.total - a.total) * sortDir;
+          if (sortCol === "total") {
+            var aW = WINNERS.has(a.id) ? 1 : 0;
+            var bW = WINNERS.has(b.id) ? 1 : 0;
+            if (sortDir === -1 && aW !== bW) return bW - aW;
+            return (a.total - b.total) * sortDir;
+          }
           if (sortCol === "id") return a.id.localeCompare(b.id) * sortDir;
           if (sortCol === "clasa")
             return a.clasa.localeCompare(b.clasa) * sortDir;
@@ -15683,6 +15714,458 @@
       document.addEventListener("keydown", function (e) {
         if (e.key === "Escape") closeModal();
       });
+    </script>
+
+    <!-- DEPARTAJARE CALCULATOR -->
+    <div class="main" style="padding-top: 0">
+      <div class="judete-section" id="dep-section">
+        <div class="judete-title">⚖️ Calculator Departajare — Criteriul 1</div>
+        <div id="dep-app">
+          <!-- CONFIG ROW -->
+          <div
+            style="
+              display: flex;
+              gap: 10px;
+              flex-wrap: wrap;
+              margin-bottom: 14px;
+              align-items: center;
+            "
+          >
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                padding: 8px 14px;
+              "
+            >
+              <span
+                style="
+                  font-size: 12px;
+                  color: var(--muted);
+                  font-weight: 600;
+                  text-transform: uppercase;
+                  letter-spacing: 0.06em;
+                "
+                >Exerciții</span
+              >
+              <button
+                onclick="depChangeEx(-1)"
+                style="
+                  background: var(--surface2);
+                  border: 1px solid var(--border);
+                  color: var(--text);
+                  border-radius: 6px;
+                  width: 28px;
+                  height: 28px;
+                  cursor: pointer;
+                  font-size: 16px;
+                  line-height: 1;
+                "
+              >
+                −
+              </button>
+              <span
+                id="dep-ex-count"
+                style="
+                  font-family: &quot;JetBrains Mono&quot;, monospace;
+                  font-size: 18px;
+                  font-weight: 700;
+                  min-width: 24px;
+                  text-align: center;
+                "
+                >3</span
+              >
+              <button
+                onclick="depChangeEx(1)"
+                style="
+                  background: var(--surface2);
+                  border: 1px solid var(--border);
+                  color: var(--text);
+                  border-radius: 6px;
+                  width: 28px;
+                  height: 28px;
+                  cursor: pointer;
+                  font-size: 16px;
+                  line-height: 1;
+                "
+              >
+                +
+              </button>
+            </div>
+            <div
+              style="
+                display: flex;
+                align-items: center;
+                gap: 8px;
+                background: var(--surface);
+                border: 1px solid var(--border);
+                border-radius: 10px;
+                padding: 8px 14px;
+              "
+            >
+              <span
+                style="
+                  font-size: 12px;
+                  color: var(--muted);
+                  font-weight: 600;
+                  text-transform: uppercase;
+                  letter-spacing: 0.06em;
+                "
+                >Pct. Oficiu</span
+              >
+              <input
+                id="dep-oficiu"
+                type="number"
+                min="0"
+                max="100"
+                value="10"
+                style="
+                  width: 60px;
+                  background: var(--surface2);
+                  border: 1px solid var(--border);
+                  border-radius: 6px;
+                  padding: 4px 8px;
+                  color: var(--text);
+                  font-family: &quot;JetBrains Mono&quot;, monospace;
+                  font-size: 14px;
+                  font-weight: 700;
+                  text-align: center;
+                  outline: none;
+                "
+                oninput="depRenderTable()"
+              />
+            </div>
+            <button
+              onclick="depAddParticipant()"
+              style="
+                background: var(--accent);
+                border: none;
+                border-radius: 8px;
+                padding: 8px 16px;
+                color: #fff;
+                font-family: &quot;Sora&quot;, sans-serif;
+                font-size: 12px;
+                font-weight: 600;
+                cursor: pointer;
+              "
+            >
+              + Participant
+            </button>
+            <button
+              onclick="depCalculate()"
+              style="
+                background: var(--green);
+                border: none;
+                border-radius: 8px;
+                padding: 8px 20px;
+                color: #000;
+                font-family: &quot;Sora&quot;, sans-serif;
+                font-size: 12px;
+                font-weight: 700;
+                cursor: pointer;
+                letter-spacing: 0.04em;
+              "
+            >
+              ⚡ Calculează
+            </button>
+          </div>
+
+          <!-- TABLE -->
+          <div class="table-wrap" id="dep-table-wrap">
+            <table
+              id="dep-table"
+              style="width: 100%; border-collapse: collapse"
+            >
+              <thead id="dep-thead"></thead>
+              <tbody id="dep-tbody"></tbody>
+            </table>
+          </div>
+
+          <!-- RESULTS -->
+          <div id="dep-results" style="margin-top: 16px"></div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      var depExCount = 3;
+      var depParticipants = [
+        { id: "", scores: [] },
+        { id: "", scores: [] },
+        { id: "", scores: [] },
+      ];
+
+      function depChangeEx(delta) {
+        var n = Math.max(1, Math.min(10, depExCount + delta));
+        depExCount = n;
+        document.getElementById("dep-ex-count").textContent = n;
+        depParticipants.forEach(function (p) {
+          while (p.scores.length < n) p.scores.push("");
+          p.scores = p.scores.slice(0, n);
+        });
+        depRenderTable();
+      }
+
+      function depAddParticipant() {
+        var scores = [];
+        for (var i = 0; i < depExCount; i++) scores.push("");
+        depParticipants.push({ id: "", scores: scores });
+        depRenderTable();
+      }
+
+      function depRemoveParticipant(idx) {
+        depParticipants.splice(idx, 1);
+        depRenderTable();
+        document.getElementById("dep-results").innerHTML = "";
+      }
+
+      function depSyncFromDOM() {
+        depParticipants.forEach(function (p, i) {
+          var idEl = document.getElementById("dep-id-" + i);
+          if (idEl) p.id = idEl.value.trim();
+          for (var j = 0; j < depExCount; j++) {
+            var el = document.getElementById("dep-s-" + i + "-" + j);
+            if (el) p.scores[j] = el.value;
+          }
+        });
+      }
+
+      function depRenderTable() {
+        depSyncFromDOM();
+        var oficiu = parseInt(document.getElementById("dep-oficiu").value) || 0;
+
+        // Header
+        var th = "<tr>";
+        th +=
+          '<th style="padding:10px 14px;text-align:left;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;background:var(--surface2);border-bottom:1px solid var(--border)">ID Candidat</th>';
+        th +=
+          '<th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;background:var(--surface2);border-bottom:1px solid var(--border)">Oficiu (' +
+          oficiu +
+          "p)</th>";
+        for (var j = 0; j < depExCount; j++) {
+          th +=
+            '<th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;background:var(--surface2);border-bottom:1px solid var(--border)">Ex. ' +
+            (j + 1) +
+            "</th>";
+        }
+        th +=
+          '<th style="padding:10px 14px;text-align:center;font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.07em;background:var(--surface2);border-bottom:1px solid var(--border)">Total</th>';
+        th +=
+          '<th style="padding:10px 14px;background:var(--surface2);border-bottom:1px solid var(--border)"></th>';
+        th += "</tr>";
+        document.getElementById("dep-thead").innerHTML = th;
+
+        // Rows
+        var rows = "";
+        depParticipants.forEach(function (p, i) {
+          while (p.scores.length < depExCount) p.scores.push("");
+          var total = oficiu;
+          for (var j = 0; j < depExCount; j++) {
+            total += parseInt(p.scores[j]) || 0;
+          }
+          rows += '<tr style="border-bottom:1px solid var(--border)">';
+          rows +=
+            '<td style="padding:9px 12px"><input id="dep-id-' +
+            i +
+            '" value="' +
+            (p.id || "") +
+            '" placeholder="ex: BV_09_001" ' +
+            'style="width:140px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 9px;color:var(--text);font-family:JetBrains Mono,monospace;font-size:12px;outline:none" ' +
+            'oninput="depParticipants[' +
+            i +
+            '].id=this.value"></td>';
+          rows +=
+            '<td style="padding:9px 12px;text-align:center;color:var(--muted);font-family:JetBrains Mono,monospace;font-size:13px">' +
+            oficiu +
+            "</td>";
+          for (var j = 0; j < depExCount; j++) {
+            rows +=
+              '<td style="padding:9px 12px;text-align:center"><input id="dep-s-' +
+              i +
+              "-" +
+              j +
+              '" type="number" min="0" max="100" value="' +
+              (p.scores[j] || "") +
+              '" placeholder="0" ' +
+              'style="width:56px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:5px 6px;color:var(--text);font-family:JetBrains Mono,monospace;font-size:13px;text-align:center;outline:none" ' +
+              'oninput="depSyncFromDOM();depUpdateTotal(' +
+              i +
+              ')"></td>';
+          }
+          rows +=
+            '<td style="padding:9px 12px;text-align:center;font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700" id="dep-total-' +
+            i +
+            '">' +
+            total +
+            "</td>";
+          rows +=
+            '<td style="padding:9px 12px;text-align:center"><button onclick="depRemoveParticipant(' +
+            i +
+            ')" style="background:rgba(255,95,95,.12);border:1px solid rgba(255,95,95,.25);color:var(--red);border-radius:6px;width:26px;height:26px;cursor:pointer;font-size:14px">×</button></td>';
+          rows += "</tr>";
+        });
+        document.getElementById("dep-tbody").innerHTML = rows;
+      }
+
+      function depUpdateTotal(i) {
+        var oficiu = parseInt(document.getElementById("dep-oficiu").value) || 0;
+        var total = oficiu;
+        for (var j = 0; j < depExCount; j++) {
+          var el = document.getElementById("dep-s-" + i + "-" + j);
+          total += el ? parseInt(el.value) || 0 : 0;
+        }
+        var el = document.getElementById("dep-total-" + i);
+        if (el) el.textContent = total;
+      }
+
+      function depCalculate() {
+        depSyncFromDOM();
+        var oficiu = parseInt(document.getElementById("dep-oficiu").value) || 0;
+
+        // Build sorted score arrays for each participant
+        var participants = depParticipants.map(function (p, i) {
+          var scores = p.scores.slice(0, depExCount).map(function (s) {
+            return parseInt(s) || 0;
+          });
+          var total =
+            oficiu +
+            scores.reduce(function (a, b) {
+              return a + b;
+            }, 0);
+          var sorted = scores.slice().sort(function (a, b) {
+            return b - a;
+          });
+          return {
+            idx: i,
+            id: p.id || "P" + (i + 1),
+            scores: scores,
+            sorted: sorted,
+            total: total,
+          };
+        });
+
+        // Sort by C1: lexicographic descending on sorted scores array
+        participants.sort(function (a, b) {
+          for (var k = 0; k < Math.max(a.sorted.length, b.sorted.length); k++) {
+            var av = a.sorted[k] !== undefined ? a.sorted[k] : -1;
+            var bv = b.sorted[k] !== undefined ? b.sorted[k] : -1;
+            if (bv !== av) return bv - av;
+          }
+          return 0;
+        });
+
+        // Find ties (adjacent equal sorted arrays)
+        function arrEq(a, b) {
+          if (a.length !== b.length) return false;
+          for (var i = 0; i < a.length; i++) if (a[i] !== b[i]) return false;
+          return true;
+        }
+        var tiedWith = new Set();
+        for (var i = 0; i < participants.length - 1; i++) {
+          if (arrEq(participants[i].sorted, participants[i + 1].sorted)) {
+            tiedWith.add(i);
+            tiedWith.add(i + 1);
+          }
+        }
+
+        // Render results
+        var html =
+          '<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden">';
+        html +=
+          '<div style="padding:10px 16px;background:var(--surface2);border-bottom:1px solid var(--border);font-size:11px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;display:flex;align-items:center;gap:8px">';
+        html +=
+          '<span style="display:block;width:3px;height:14px;background:var(--accent);border-radius:2px"></span>Rezultat Departajare C1</div>';
+        html += '<table style="width:100%;border-collapse:collapse">';
+        html += '<thead><tr style="background:var(--surface2)">';
+        html +=
+          '<th style="padding:9px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">Loc</th>';
+        html +=
+          '<th style="padding:9px 14px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">ID</th>';
+        html +=
+          '<th style="padding:9px 14px;text-align:center;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">Total</th>';
+        html +=
+          '<th style="padding:9px 14px;text-align:center;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em">Punctaje sortate ↓</th>';
+        html += "</tr></thead><tbody>";
+
+        var place = 1;
+        for (var i = 0; i < participants.length; i++) {
+          var p = participants[i];
+          var tied = tiedWith.has(i);
+          var color = tied ? "#ff8c00" : "var(--text)";
+          var bg = tied
+            ? "background:rgba(255,140,0,0.07)"
+            : i === 0
+              ? "background:rgba(245,200,66,0.05)"
+              : "";
+          var rankColor =
+            i === 0 && !tied
+              ? "var(--gold)"
+              : tied
+                ? "#ff8c00"
+                : "var(--muted)";
+
+          // Same place for ties
+          if (
+            i > 0 &&
+            arrEq(participants[i].sorted, participants[i - 1].sorted)
+          ) {
+            // same place as previous
+          } else {
+            place = i + 1;
+          }
+
+          var sortedStr = p.sorted
+            .map(function (s) {
+              return (
+                '<span style="display:inline-block;background:var(--surface2);border:1px solid var(--border);border-radius:4px;padding:1px 6px;font-family:JetBrains Mono,monospace;font-size:11px;margin:1px">' +
+                s +
+                "</span>"
+              );
+            })
+            .join(" ");
+
+          html +=
+            '<tr style="border-bottom:1px solid var(--border);' + bg + '">';
+          html +=
+            '<td style="padding:11px 14px;font-family:JetBrains Mono,monospace;font-size:14px;font-weight:700;color:' +
+            rankColor +
+            '">' +
+            place +
+            "</td>";
+          html +=
+            '<td style="padding:11px 14px;font-family:JetBrains Mono,monospace;font-size:14px;font-weight:700;color:' +
+            color +
+            '">' +
+            p.id;
+          if (tied)
+            html +=
+              ' <span style="font-size:10px;font-weight:700;background:rgba(255,140,0,.15);border:1px solid rgba(255,140,0,.4);border-radius:4px;padding:1px 5px;color:#ff8c00;letter-spacing:.04em;vertical-align:middle">EGALITATE</span>';
+          html += "</td>";
+          html +=
+            '<td style="padding:11px 14px;text-align:center;font-family:JetBrains Mono,monospace;font-size:15px;font-weight:700;color:' +
+            color +
+            '">' +
+            p.total +
+            "</td>";
+          html +=
+            '<td style="padding:11px 14px;text-align:center">' +
+            sortedStr +
+            "</td>";
+          html += "</tr>";
+        }
+        html += "</tbody></table></div>";
+        document.getElementById("dep-results").innerHTML = html;
+      }
+
+      // Init
+      depParticipants.forEach(function (p) {
+        while (p.scores.length < depExCount) p.scores.push("");
+      });
+      depRenderTable();
     </script>
 
     <footer
